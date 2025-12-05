@@ -1,536 +1,581 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Menu, X, Instagram, MapPin, Calendar, Trophy, Users, ChevronRight, Play, ExternalLink, Volume2, VolumeX, Sparkles, Skull, Zap } from 'lucide-react';
-
-// --- CONFIGURACIÓN GEMINI API ---
-const apiKey = ""; // La API key se inyecta automáticamente en el entorno de ejecución
-
-// --- COMPONENTES AUXILIARES ---
-
-// (El componente FistIcon ha sido eliminado ya que se reemplazó por la imagen)
-
-// Tarjeta de Video para la Galería (Simula Instagram Reel)
-const VideoCard = ({ src, poster, index }) => {
-  const videoRef = useRef(null);
-  const [isHovering, setIsHovering] = useState(false);
-
-  useEffect(() => {
-    if (videoRef.current) {
-      if (isHovering) {
-        videoRef.current.play().catch(e => console.log("Autoplay prevent", e));
-      } else {
-        videoRef.current.pause();
-        videoRef.current.currentTime = 0;
-      }
-    }
-  }, [isHovering]);
-
-  return (
-    <div 
-      className="aspect-[9/16] bg-neutral-900 relative group overflow-hidden cursor-pointer border border-neutral-800 hover:border-red-600 transition-all duration-300"
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
-    >
-      <video 
-        ref={videoRef}
-        src={src}
-        poster={poster}
-        muted
-        loop
-        playsInline
-        className="w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700 grayscale group-hover:grayscale-0"
-      />
-      
-      {/* Icono de Play en reposo */}
-      <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${isHovering ? 'opacity-0' : 'opacity-100'}`}>
-         <Play fill="white" className="w-8 h-8 text-white drop-shadow-md" />
-      </div>
-
-      {/* Overlay tipo Instagram */}
-      <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-        <div className="flex items-center gap-2 text-white text-xs font-bold uppercase tracking-wider">
-           <Instagram size={14} /> Reel {index + 1}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// --- COMPONENTE FEATURE GEMINI: EL BAUTIZO ---
-const BautizoSection = () => {
-  const [name, setName] = useState('');
-  const [style, setStyle] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
-
-  const styles = [
-    "Callejero Sucio",
-    "Boxeador Técnico",
-    "Luchador de Sumo Ebrio",
-    "Ninja de La Pintana",
-    "Karateca Frustrado",
-    "Tanque Humano"
-  ];
-
-  const generateNickname = async () => {
-    if (!name) return;
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matando La Seka - Liga Underground</title>
     
-    setLoading(true);
-    setError(null);
-    setResult(null);
+    <!-- 1. CARGA DE LIBRERÍAS (Tailwind CSS y Fuentes) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
+    <!-- Iconos Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 
-    const prompt = `Actúa como un narrador de peleas underground chileno, muy agresivo y con jerga callejera (coa). 
-    El usuario se llama "${name}" y su estilo de pelea es "${style || 'Callejero Indefinido'}".
-    
-    Tu tarea es:
-    1. Inventarle un Apodo (Nickname) intimidante o gracioso pero rudo.
-    2. Escribir una frase corta de entrada al ring (intro).
-    3. Definir su "Movimiento Especial" (con un nombre creativo).
-    
-    Responde en formato JSON limpio con estas claves: "nickname", "intro", "move".
-    Mantén el tono oscuro, rudo y divertido.`;
-
-    try {
-      // Reintentos exponenciales básicos para la llamada a la API
-      const fetchWithRetry = async (retries = 3, delay = 1000) => {
-        try {
-          const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { responseMimeType: "application/json" }
-              }),
-            }
-          );
-          if (!response.ok) throw new Error('API Error');
-          return await response.json();
-        } catch (err) {
-          if (retries > 0) {
-            await new Promise(r => setTimeout(r, delay));
-            return fetchWithRetry(retries - 1, delay * 2);
-          }
-          throw err;
+    <!-- 2. CSS (ESTILOS) -->
+    <style>
+        /* Variables y Fuentes */
+        :root {
+            --color-red-600: #dc2626;
+            --color-black: #000000;
         }
-      };
 
-      const data = await fetchWithRetry();
-      const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      
-      if (generatedText) {
-        setResult(JSON.parse(generatedText));
-      }
-    } catch (err) {
-      setError("El sistema se cayó por un golpe bajo. Intenta de nuevo.");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+        body {
+            font-family: sans-serif;
+            background-color: black;
+            color: #fef2f2; /* red-50 */
+            overflow-x: hidden;
+        }
 
-  return (
-    <section className="py-20 bg-neutral-900 border-y border-red-900/30 relative overflow-hidden">
-      {/* Background elements */}
-      <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
-      <div className="absolute -right-20 top-20 w-96 h-96 bg-red-600/10 rounded-full blur-3xl"></div>
-
-      <div className="max-w-4xl mx-auto px-4 relative z-10 text-center">
-        <div className="inline-flex items-center gap-2 text-red-500 font-mma uppercase tracking-widest mb-4">
-          <Sparkles size={20} /> IA Powered Feature
-        </div>
-        <h2 className="text-5xl md:text-6xl font-mma uppercase italic text-white mb-2">
-          El <span className="text-red-600">Bautizo</span>
-        </h2>
-        <p className="text-gray-400 mb-10 max-w-xl mx-auto">
-          ¿No tienes chapa para el ring? Deja que la Inteligencia Artificial decida tu destino en la liga.
-        </p>
-
-        <div className="bg-black/80 backdrop-blur-sm border border-red-900/50 p-6 md:p-10 rounded-sm shadow-[0_0_30px_rgba(220,38,38,0.1)]">
-          {!result ? (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="text-left">
-                  <label className="block text-red-500 font-mma uppercase mb-2">Tu Nombre Real</label>
-                  <input 
-                    type="text" 
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Ej: Juan Pérez"
-                    className="w-full bg-neutral-900 border border-neutral-700 text-white p-4 focus:border-red-600 focus:outline-none uppercase font-bold rounded-sm placeholder-gray-600"
-                  />
-                </div>
-                <div className="text-left">
-                  <label className="block text-red-500 font-mma uppercase mb-2">Estilo de Pelea</label>
-                  <select 
-                    value={style}
-                    onChange={(e) => setStyle(e.target.value)}
-                    className="w-full bg-neutral-900 border border-neutral-700 text-white p-4 focus:border-red-600 focus:outline-none uppercase font-bold rounded-sm appearance-none"
-                  >
-                    <option value="">Selecciona tu estilo...</option>
-                    {styles.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-              </div>
-              
-              <button 
-                onClick={generateNickname}
-                disabled={!name || loading}
-                className={`w-full py-4 font-mma uppercase text-xl flex items-center justify-center gap-3 transition-all ${
-                  !name || loading 
-                  ? 'bg-neutral-800 text-gray-500 cursor-not-allowed' 
-                  : 'bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white shadow-[0_0_20px_rgba(220,38,38,0.4)] hover:shadow-[0_0_30px_rgba(220,38,38,0.6)]'
-                }`}
-              >
-                {loading ? (
-                  <>Generando Caos...</>
-                ) : (
-                  <>Generar Mi Identidad ✨</>
-                )}
-              </button>
-              {error && <p className="text-red-400 font-mono mt-2">{error}</p>}
-            </div>
-          ) : (
-            <div className="animate-fade-up">
-              <div className="mb-8 border-b border-red-900/30 pb-6">
-                <p className="text-gray-500 uppercase tracking-widest text-xs mb-2">Tu nueva identidad</p>
-                <h3 className="text-5xl md:text-7xl font-mma uppercase italic text-white leading-none">
-                  <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400">{name}</span> <br/>
-                  <span className="text-red-600">"{result.nickname}"</span>
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
-                <div className="bg-neutral-900/50 p-4 border-l-4 border-red-600">
-                  <div className="flex items-center gap-2 text-white font-bold uppercase mb-2">
-                    <Volume2 size={18} className="text-red-500" /> Intro
-                  </div>
-                  <p className="text-gray-300 italic">"{result.intro}"</p>
-                </div>
-                <div className="bg-neutral-900/50 p-4 border-l-4 border-red-600">
-                  <div className="flex items-center gap-2 text-white font-bold uppercase mb-2">
-                    <Zap size={18} className="text-red-500" /> Movimiento Especial
-                  </div>
-                  <p className="text-gray-300 font-black uppercase text-xl">{result.move}</p>
-                </div>
-              </div>
-
-              <button 
-                onClick={() => { setResult(null); setName(''); setStyle(''); }}
-                className="mt-8 text-gray-500 hover:text-white uppercase font-bold text-sm tracking-widest hover:underline"
-              >
-                Intentar con otro peleador
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </section>
-  );
-};
-
-
-// Datos simulados (Mezcla de imágenes y videos)
-const galleryItems = [
-  { type: 'video', src: 'https://assets.mixkit.co/videos/preview/mixkit-boxer-training-in-the-gym-40296-large.mp4', poster: 'https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?q=80&w=400' },
-  { type: 'video', src: 'https://assets.mixkit.co/videos/preview/mixkit-fighter-performing-a-kick-boxing-movement-40263-large.mp4', poster: 'https://images.unsplash.com/photo-1615572669205-98b3f6631895?q=80&w=400' },
-  { type: 'video', src: 'https://assets.mixkit.co/videos/preview/mixkit-boxer-getting-ready-to-fight-40331-large.mp4', poster: 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?q=80&w=400' },
-  { type: 'video', src: 'https://assets.mixkit.co/videos/preview/mixkit-man-training-boxing-in-gym-slow-motion-40356-large.mp4', poster: 'https://images.unsplash.com/photo-1595078475328-1ab05d0a6a0e?q=80&w=400' },
-];
-
-export default function App() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const [muted, setMuted] = useState(true);
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
-
-  return (
-    <div className="min-h-screen bg-black text-red-50 font-sans selection:bg-red-600 selection:text-white overflow-x-hidden">
-      
-      {/* Importar Fuente 'Anton' para simular Dream MMA */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
-        
         .font-mma {
-          font-family: 'Anton', sans-serif;
-          letter-spacing: 0.05em;
+            font-family: 'Anton', sans-serif;
+            letter-spacing: 0.05em;
         }
 
+        /* Efectos de Texto */
         .text-outline-red {
-          -webkit-text-stroke: 1px #dc2626;
-          color: transparent;
+            -webkit-text-stroke: 1px var(--color-red-600);
+            color: transparent;
         }
 
-        .animate-glitch {
-          animation: glitch 1s linear infinite;
-        }
-
-        @keyframes glitch {
-          2%, 64% { transform: translate(2px,0) skew(0deg); }
-          4%, 60% { transform: translate(-2px,0) skew(0deg); }
-          62% { transform: translate(0,0) skew(5deg); }
-        }
-
+        /* Animaciones Personalizadas */
         .animate-fade-up {
-          animation: fadeUp 1s ease-out forwards;
-          opacity: 0;
-          transform: translateY(20px);
+            animation: fadeUp 1s ease-out forwards;
+            opacity: 0;
+            transform: translateY(20px);
         }
 
         @keyframes fadeUp {
-          to { opacity: 1; transform: translateY(0); }
+            to { opacity: 1; transform: translateY(0); }
         }
-      `}</style>
 
-      {/* Navbar */}
-      <nav className={`fixed w-full z-50 transition-all duration-300 ${scrolled ? 'bg-black/90 backdrop-blur-md border-b border-red-600/30' : 'bg-transparent'}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <div className="flex-shrink-0 flex items-center gap-2 group cursor-pointer">
-              {/* NUEVO LOGO EN NAVBAR */}
-              <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center border-2 border-black group-hover:rotate-12 transition-transform shadow-[0_0_15px_rgba(220,38,38,0.8)] overflow-hidden p-1">
-                <img src="image_bf3b84.png" alt="MLS Logo" className="w-full h-full object-contain" />
-              </div>
-              <span className="font-mma text-2xl uppercase italic text-white group-hover:text-red-500 transition-colors">
-                Matando La <span className="text-red-600">Seka</span>
-              </span>
-            </div>
-            
-            <div className="hidden md:block">
-              <div className="ml-10 flex items-baseline space-x-8">
-                {['Inicio', 'Eventos', 'Ranking', 'Galería'].map((item) => (
-                  <a key={item} href={`#${item.toLowerCase().replace(' ', '-')}`} className="text-gray-300 hover:text-white hover:tracking-widest transition-all px-3 py-2 font-mma text-lg uppercase">
-                    {item}
-                  </a>
-                ))}
-                <a href="#contacto" className="bg-red-600 hover:bg-white hover:text-red-600 text-black px-6 py-2 rounded-sm font-mma text-lg uppercase tracking-wide transition-all transform hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(220,38,38,0.6)] skew-x-[-10deg]">
-                  <span className="block skew-x-[10deg]">Inscribirse</span>
-                </a>
-              </div>
-            </div>
-            
-            <div className="-mr-2 flex md:hidden">
-              <button onClick={toggleMenu} className="text-red-600 hover:text-white">
-                {isMenuOpen ? <X size={32} /> : <Menu size={32} />}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Menu Overlay */}
-        <div className={`md:hidden fixed inset-0 z-40 bg-black/95 backdrop-blur-xl transition-all duration-500 ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-           <div className="flex flex-col items-center justify-center h-full space-y-8">
-             {['Inicio', 'Eventos', 'Ranking', 'Galería'].map((item) => (
-                <a key={item} href={`#${item.toLowerCase().replace(' ', '-')}`} onClick={() => setIsMenuOpen(false)} className="text-4xl font-mma text-white hover:text-red-600 uppercase italic">
-                  {item}
-                </a>
-             ))}
-             <a href="#contacto" onClick={() => setIsMenuOpen(false)} className="text-2xl font-black bg-red-600 text-black px-8 py-3 rounded-sm uppercase">
-               Inscribirse Ahora
-             </a>
-           </div>
-        </div>
-      </nav>
-
-      {/* Hero Section con VIDEO DE FONDO */}
-      <section id="inicio" className="relative h-screen flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/30 z-10"></div>
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,black_120%)] z-10"></div>
-          
-          {/* VIDEO DE FONDO */}
-          <video 
-            autoPlay 
-            loop 
-            muted 
-            playsInline
-            className="absolute inset-0 w-full h-full object-cover opacity-60 scale-105"
-          >
-            <source src="https://assets.mixkit.co/videos/preview/mixkit-boxing-training-in-a-gym-40291-large.mp4" type="video/mp4" />
-          </video>
-        </div>
-
-        <div className="relative z-20 text-center px-4 max-w-7xl mx-auto mt-16 animate-fade-up" style={{animationDelay: '0.2s'}}>
-          <div className="inline-flex items-center gap-3 px-4 py-2 bg-red-600/20 border border-red-600 rounded-sm mb-6 backdrop-blur-md">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
-            <span className="text-red-100 text-sm font-mma uppercase tracking-widest">En Vivo: Santiago Underground</span>
-          </div>
-          
-          <h1 className="text-6xl md:text-8xl font-mma uppercase italic tracking-tight leading-[0.85] mb-6 text-white drop-shadow-[0_0_10px_rgba(0,0,0,1)]">
-            SE BUSCA AL <br/>
-            <span className="text-red-600 drop-shadow-[0_0_30px_rgba(220,38,38,0.8)] relative inline-block">
-              MONICATE MA BRIJIDO
-              <span className="absolute inset-0 text-red-600 blur-sm animate-pulse opacity-50">MONICATE MA BRIJIDO</span>
-            </span>
-          </h1>
-          
-          <p className="text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto mb-10 font-medium uppercase tracking-wide">
-            Liga deportiva de peleas amateur
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <button className="group relative px-10 py-5 bg-red-600 text-white font-mma uppercase text-2xl tracking-wider rounded-sm overflow-hidden transition-all hover:scale-105 shadow-[0_0_20px_rgba(220,38,38,0.5)] skew-x-[-10deg]">
-              <span className="block skew-x-[10deg] flex items-center gap-2">
-                Ver Fecha <ChevronRight size={28} className="stroke-[3]" />
-              </span>
-            </button>
-            
-            <button className="px-10 py-5 bg-transparent border-2 border-white/30 hover:border-red-500 hover:bg-black/50 text-white font-mma uppercase text-xl tracking-wider rounded-sm transition-all flex items-center gap-3 skew-x-[-10deg] backdrop-blur-sm">
-               <span className="block skew-x-[10deg] flex items-center gap-2">
-                <Play size={24} fill="currentColor" /> Highlights
-               </span>
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Bar */}
-      <div className="bg-neutral-900 border-y border-red-900/50 relative z-20 overflow-hidden">
-         <div className="max-w-7xl mx-auto grid grid-cols-3 divide-x divide-red-900/50">
-           {[
-             { num: '40K', label: 'Seguidores', icon: Users },
-             { num: '+50', label: 'Peleas', icon: Trophy },
-             { num: 'STGO', label: '100% Calle', icon: MapPin }
-           ].map((stat, i) => (
-             <div key={i} className="py-8 text-center group hover:bg-red-900/10 transition-colors">
-               <stat.icon className="w-8 h-8 mx-auto mb-2 text-red-600 group-hover:scale-110 transition-transform" />
-               <h3 className="text-4xl md:text-5xl font-mma text-white italic">{stat.num}</h3>
-               <p className="text-xs text-gray-500 uppercase tracking-[0.2em]">{stat.label}</p>
-             </div>
-           ))}
-         </div>
-      </div>
-
-      {/* NUEVA SECCIÓN: GEMINI AI FEATURE */}
-      <BautizoSection />
-
-      {/* Next Event Section */}
-      <section id="eventos" className="py-24 bg-black relative">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-red-600/10 rounded-full blur-[120px] pointer-events-none"></div>
+        /* Utilidades de Transformación */
+        .skew-x-10-neg { transform: skewX(-10deg); }
+        .skew-x-10 { transform: skewX(10deg); }
         
-        <div className="max-w-6xl mx-auto px-4 relative z-10">
-          <div className="flex flex-col md:flex-row items-center gap-12">
-            
-            {/* Poster Animado */}
-            <div className="w-full md:w-1/2 group">
-              <div className="relative aspect-[4/5] rounded-sm overflow-hidden border-2 border-neutral-800 group-hover:border-red-600 transition-colors shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-                <img 
-                  src="https://images.unsplash.com/photo-1544117519-31a4b719223d?q=80&w=1000" 
-                  alt="Poster" 
-                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 scale-100 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-90"></div>
-                
-                <div className="absolute bottom-8 left-8 right-8">
-                  <div className="bg-red-600 text-black inline-block px-3 py-1 font-mma uppercase text-sm mb-4 transform -skew-x-10">
-                    Próximo Evento
-                  </div>
-                  <h3 className="text-5xl font-mma uppercase italic text-white leading-none mb-2">
-                    Buscando al <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-white">Monicate</span>
-                  </h3>
-                  <div className="h-1 w-20 bg-red-600 mt-4"></div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="w-full md:w-1/2 space-y-8">
-              <h2 className="text-6xl md:text-7xl font-mma uppercase italic text-white leading-[0.9]">
-                ¿Listo para <br/> la <span className="text-outline-red">destrucción?</span>
-              </h2>
-              <p className="text-gray-400 text-lg border-l-4 border-red-600 pl-6 py-2">
-                Vuelve la liga amateur más sangrienta de Santiago. Cupos limitados para peleadores y espectadores. No te quedes fuera de la jaula de asfalto.
-              </p>
-              
-              <div className="grid grid-cols-1 gap-4">
-                <div className="bg-neutral-900/50 border border-neutral-800 p-6 flex items-center gap-6 hover:border-red-600 transition-all group cursor-pointer">
-                  <Calendar className="text-red-600 w-10 h-10 group-hover:animate-bounce" />
-                  <div>
-                    <h4 className="font-mma text-2xl text-white uppercase">Sábado 15 Octubre</h4>
-                    <p className="text-red-500 font-mono">16:00 hrs - Apertura</p>
-                  </div>
+        /* Efecto Glitch (Opcional) */
+        .glitch-effect:hover {
+            animation: glitch 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+        }
+        @keyframes glitch {
+            0% { transform: translate(0) }
+            20% { transform: translate(-2px, 2px) }
+            40% { transform: translate(-2px, -2px) }
+            60% { transform: translate(2px, 2px) }
+            80% { transform: translate(2px, -2px) }
+            100% { transform: translate(0) }
+        }
+
+        /* Estilos para el Navbar Scroll */
+        .nav-scrolled {
+            background-color: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(220, 38, 38, 0.3);
+        }
+    </style>
+</head>
+<body class="selection:bg-red-600 selection:text-white">
+
+    <!-- 3. HTML (ESTRUCTURA) -->
+
+    <!-- Navbar -->
+    <nav id="navbar" class="fixed w-full z-50 transition-all duration-300 bg-transparent">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                <!-- Logo -->
+                <div class="flex-shrink-0 flex items-center gap-2 group cursor-pointer">
+                    <div class="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center border-2 border-black group-hover:rotate-12 transition-transform shadow-[0_0_15px_rgba(220,38,38,0.8)] overflow-hidden p-1">
+                         <img src="image_bf3b84.png" alt="MLS Logo" class="w-full h-full object-contain">
+                    </div>
+                    <span class="font-mma text-2xl uppercase italic text-white group-hover:text-red-500 transition-colors">
+                        Matando La <span class="text-red-600">Seka</span>
+                    </span>
                 </div>
                 
-                <div className="bg-neutral-900/50 border border-neutral-800 p-6 flex items-center gap-6 hover:border-red-600 transition-all group cursor-pointer">
-                  <MapPin className="text-red-600 w-10 h-10 group-hover:animate-bounce" />
-                  <div>
-                    <h4 className="font-mma text-2xl text-white uppercase">Secret Location</h4>
-                    <p className="text-red-500 font-mono">Santiago Centro (Solo con entrada)</p>
-                  </div>
+                <!-- Menu Desktop -->
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-8">
+                        <a href="#inicio" class="text-gray-300 hover:text-white hover:tracking-widest transition-all px-3 py-2 font-mma text-lg uppercase">Inicio</a>
+                        <a href="#eventos" class="text-gray-300 hover:text-white hover:tracking-widest transition-all px-3 py-2 font-mma text-lg uppercase">Eventos</a>
+                        <a href="#ranking" class="text-gray-300 hover:text-white hover:tracking-widest transition-all px-3 py-2 font-mma text-lg uppercase">Ranking</a>
+                        <a href="#galeria" class="text-gray-300 hover:text-white hover:tracking-widest transition-all px-3 py-2 font-mma text-lg uppercase">Galería</a>
+                        
+                        <a href="#contacto" class="bg-red-600 hover:bg-white hover:text-red-600 text-black px-6 py-2 rounded-sm font-mma text-lg uppercase tracking-wide transition-all transform hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(220,38,38,0.6)] skew-x-10-neg inline-block">
+                            <span class="block skew-x-10">Inscribirse</span>
+                        </a>
+                    </div>
                 </div>
-              </div>
-
-              <button className="w-full py-6 bg-white hover:bg-red-600 text-black hover:text-white font-mma uppercase text-2xl transition-all shadow-[5px_5px_0_#dc2626] hover:shadow-none hover:translate-x-[5px] hover:translate-y-[5px]">
-                Comprar Entrada
-              </button>
+                
+                <!-- Botón Menu Móvil -->
+                <div class="-mr-2 flex md:hidden">
+                    <button id="mobile-menu-btn" class="text-red-600 hover:text-white">
+                        <i data-lucide="menu" class="w-8 h-8"></i>
+                    </button>
+                </div>
             </div>
-          </div>
         </div>
-      </section>
 
-      {/* Video Gallery Section (Instagram Style) */}
-      <section id="galeria" className="py-24 bg-neutral-950">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex justify-between items-end mb-12">
-            <div>
-              <h2 className="text-6xl font-mma uppercase italic text-white">
-                Highlights <span className="text-red-600">Reels</span>
-              </h2>
-              <p className="text-gray-400 mt-2 font-mono uppercase tracking-widest">Lo mejor de la semana</p>
+        <!-- Mobile Menu Overlay -->
+        <div id="mobile-menu" class="fixed inset-0 z-40 bg-black/95 backdrop-blur-xl transition-transform duration-500 translate-x-full md:hidden">
+            <button id="close-menu-btn" class="absolute top-6 right-4 text-red-600">
+                <i data-lucide="x" class="w-8 h-8"></i>
+            </button>
+            <div class="flex flex-col items-center justify-center h-full space-y-8">
+                <a href="#inicio" class="mobile-link text-4xl font-mma text-white hover:text-red-600 uppercase italic">Inicio</a>
+                <a href="#eventos" class="mobile-link text-4xl font-mma text-white hover:text-red-600 uppercase italic">Eventos</a>
+                <a href="#ranking" class="mobile-link text-4xl font-mma text-white hover:text-red-600 uppercase italic">Ranking</a>
+                <a href="#galeria" class="mobile-link text-4xl font-mma text-white hover:text-red-600 uppercase italic">Galería</a>
+                <a href="#contacto" class="mobile-link text-2xl font-black bg-red-600 text-black px-8 py-3 rounded-sm uppercase">Inscribirse Ahora</a>
             </div>
-            <div className="flex gap-2">
-               <button onClick={() => setMuted(!muted)} className="p-3 border border-neutral-700 rounded-full hover:bg-white hover:text-black transition-all">
-                 {muted ? <VolumeX size={20}/> : <Volume2 size={20}/>}
-               </button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="inicio" class="relative h-screen flex items-center justify-center overflow-hidden">
+        <!-- Video Background -->
+        <div class="absolute inset-0 z-0">
+            <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/30 z-10"></div>
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,black_120%)] z-10"></div>
+            <video autoplay loop muted playsinline class="absolute inset-0 w-full h-full object-cover opacity-60 scale-105">
+                <source src="https://assets.mixkit.co/videos/preview/mixkit-boxing-training-in-a-gym-40291-large.mp4" type="video/mp4">
+            </video>
+        </div>
+
+        <div class="relative z-20 text-center px-4 max-w-7xl mx-auto mt-16 animate-fade-up" style="animation-delay: 0.2s;">
+            <div class="inline-flex items-center gap-3 px-4 py-2 bg-red-600/20 border border-red-600 rounded-sm mb-6 backdrop-blur-md">
+                <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                <span class="text-red-100 text-sm font-mma uppercase tracking-widest">En Vivo: Santiago Underground</span>
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {galleryItems.map((item, index) => (
-              <VideoCard key={index} src={item.src} poster={item.poster} index={index} />
-            ))}
-          </div>
-          
-          <div className="mt-8 text-center">
-             <a href="https://instagram.com" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-red-500 font-mma uppercase text-xl hover:text-white transition-colors border-b-2 border-red-500 pb-1">
-               Ver más en Instagram <ExternalLink size={20} />
-             </a>
-          </div>
+            
+            <h1 class="text-6xl md:text-8xl font-mma uppercase italic tracking-tight leading-[0.85] mb-6 text-white drop-shadow-[0_0_10px_rgba(0,0,0,1)]">
+                SE BUSCA AL <br/>
+                <span class="text-red-600 drop-shadow-[0_0_30px_rgba(220,38,38,0.8)] relative inline-block">
+                    MONICATE MA BRIJIDO
+                    <span class="absolute inset-0 text-red-600 blur-sm animate-pulse opacity-50">MONICATE MA BRIJIDO</span>
+                </span>
+            </h1>
+            
+            <p class="text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto mb-10 font-medium uppercase tracking-wide">
+                Liga deportiva de peleas amateur
+            </p>
+            
+            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <button class="group relative px-10 py-5 bg-red-600 text-white font-mma uppercase text-2xl tracking-wider rounded-sm overflow-hidden transition-all hover:scale-105 shadow-[0_0_20px_rgba(220,38,38,0.5)] skew-x-10-neg">
+                    <span class="block skew-x-10 flex items-center gap-2">
+                        Ver Fecha <i data-lucide="chevron-right" class="w-7 h-7"></i>
+                    </span>
+                </button>
+                
+                <button class="px-10 py-5 bg-transparent border-2 border-white/30 hover:border-red-500 hover:bg-black/50 text-white font-mma uppercase text-xl tracking-wider rounded-sm transition-all flex items-center gap-3 skew-x-10-neg backdrop-blur-sm">
+                    <span class="block skew-x-10 flex items-center gap-2">
+                        <i data-lucide="play" class="w-6 h-6 fill-current"></i> Highlights
+                    </span>
+                </button>
+            </div>
         </div>
-      </section>
+    </section>
 
-      {/* Footer */}
-      <footer id="contacto" className="bg-black border-t-4 border-red-600 pt-20 pb-10 relative">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          {/* NUEVO LOGO EN FOOTER */}
-          <div className="w-24 h-24 bg-red-600 rounded-full flex items-center justify-center border-4 border-white mx-auto mb-8 animate-pulse shadow-[0_0_50px_rgba(220,38,38,0.5)] overflow-hidden p-2">
-             <img src="image_bf3b84.png" alt="MLS Logo" className="w-full h-full object-contain" />
-          </div>
-          <h2 className="text-5xl md:text-7xl font-mma uppercase italic tracking-tighter mb-8 text-white">
-            Matando La Seka
-          </h2>
-          
-          <div className="flex justify-center gap-8 mb-12">
-            <a href="#" className="p-4 bg-neutral-900 rounded-full hover:bg-red-600 hover:text-white transition-all hover:-translate-y-2">
-              <Instagram size={28} />
-            </a>
-            <a href="#" className="p-4 bg-neutral-900 rounded-full hover:bg-red-600 hover:text-white transition-all hover:-translate-y-2">
-              <Users size={28} />
-            </a>
-          </div>
-
-          <p className="text-neutral-600 text-sm font-mono uppercase">
-            © {new Date().getFullYear()} MLS. Santiago, Chile.
-          </p>
+    <!-- Stats Bar -->
+    <div class="bg-neutral-900 border-y border-red-900/50 relative z-20 overflow-hidden">
+        <div class="max-w-7xl mx-auto grid grid-cols-3 divide-x divide-red-900/50">
+            <div class="py-8 text-center group hover:bg-red-900/10 transition-colors">
+                <i data-lucide="users" class="w-8 h-8 mx-auto mb-2 text-red-600 group-hover:scale-110 transition-transform"></i>
+                <h3 class="text-4xl md:text-5xl font-mma text-white italic">40K</h3>
+                <p class="text-xs text-gray-500 uppercase tracking-[0.2em]">Seguidores</p>
+            </div>
+            <div class="py-8 text-center group hover:bg-red-900/10 transition-colors">
+                <i data-lucide="trophy" class="w-8 h-8 mx-auto mb-2 text-red-600 group-hover:scale-110 transition-transform"></i>
+                <h3 class="text-4xl md:text-5xl font-mma text-white italic">+50</h3>
+                <p class="text-xs text-gray-500 uppercase tracking-[0.2em]">Peleas</p>
+            </div>
+            <div class="py-8 text-center group hover:bg-red-900/10 transition-colors">
+                <i data-lucide="map-pin" class="w-8 h-8 mx-auto mb-2 text-red-600 group-hover:scale-110 transition-transform"></i>
+                <h3 class="text-4xl md:text-5xl font-mma text-white italic">STGO</h3>
+                <p class="text-xs text-gray-500 uppercase tracking-[0.2em]">100% Calle</p>
+            </div>
         </div>
-      </footer>
     </div>
-  );
-}
+
+    <!-- Sección Feature Gemini: El Bautizo -->
+    <section class="py-20 bg-neutral-900 border-y border-red-900/30 relative overflow-hidden" id="bautizo-section">
+        <!-- Background elements -->
+        <div class="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
+        <div class="absolute -right-20 top-20 w-96 h-96 bg-red-600/10 rounded-full blur-3xl"></div>
+
+        <div class="max-w-4xl mx-auto px-4 relative z-10 text-center">
+            <div class="inline-flex items-center gap-2 text-red-500 font-mma uppercase tracking-widest mb-4">
+                <i data-lucide="sparkles" class="w-5 h-5"></i> IA Powered Feature
+            </div>
+            <h2 class="text-5xl md:text-6xl font-mma uppercase italic text-white mb-2">
+                El <span class="text-red-600">Bautizo</span>
+            </h2>
+            <p class="text-gray-400 mb-10 max-w-xl mx-auto">
+                ¿No tienes chapa para el ring? Deja que la Inteligencia Artificial decida tu destino en la liga.
+            </p>
+
+            <div class="bg-black/80 backdrop-blur-sm border border-red-900/50 p-6 md:p-10 rounded-sm shadow-[0_0_30px_rgba(220,38,38,0.1)]">
+                
+                <!-- Formulario -->
+                <div id="bautizo-form" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="text-left">
+                            <label class="block text-red-500 font-mma uppercase mb-2">Tu Nombre Real</label>
+                            <input type="text" id="fighter-name" placeholder="Ej: Juan Pérez" class="w-full bg-neutral-900 border border-neutral-700 text-white p-4 focus:border-red-600 focus:outline-none uppercase font-bold rounded-sm placeholder-gray-600">
+                        </div>
+                        <div class="text-left">
+                            <label class="block text-red-500 font-mma uppercase mb-2">Estilo de Pelea</label>
+                            <select id="fighter-style" class="w-full bg-neutral-900 border border-neutral-700 text-white p-4 focus:border-red-600 focus:outline-none uppercase font-bold rounded-sm appearance-none">
+                                <option value="">Selecciona tu estilo...</option>
+                                <option value="Callejero Sucio">Callejero Sucio</option>
+                                <option value="Boxeador Técnico">Boxeador Técnico</option>
+                                <option value="Luchador de Sumo Ebrio">Luchador de Sumo Ebrio</option>
+                                <option value="Ninja de La Pintana">Ninja de La Pintana</option>
+                                <option value="Tanque Humano">Tanque Humano</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <button id="generate-btn" class="w-full py-4 font-mma uppercase text-xl flex items-center justify-center gap-3 transition-all bg-neutral-800 text-gray-500 cursor-not-allowed" disabled>
+                        <span>Generar Mi Identidad ✨</span>
+                    </button>
+                    <p id="api-error" class="text-red-400 font-mono mt-2 hidden"></p>
+                </div>
+
+                <!-- Resultado (Oculto por defecto) -->
+                <div id="bautizo-result" class="hidden animate-fade-up">
+                    <div class="mb-8 border-b border-red-900/30 pb-6">
+                        <p class="text-gray-500 uppercase tracking-widest text-xs mb-2">Tu nueva identidad</p>
+                        <h3 class="text-5xl md:text-7xl font-mma uppercase italic text-white leading-none">
+                            <span id="result-real-name" class="text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400"></span> <br/>
+                            <span id="result-nickname" class="text-red-600"></span>
+                        </h3>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                        <div class="bg-neutral-900/50 p-4 border-l-4 border-red-600">
+                            <div class="flex items-center gap-2 text-white font-bold uppercase mb-2">
+                                <i data-lucide="volume-2" class="text-red-500 w-5 h-5"></i> Intro
+                            </div>
+                            <p id="result-intro" class="text-gray-300 italic"></p>
+                        </div>
+                        <div class="bg-neutral-900/50 p-4 border-l-4 border-red-600">
+                            <div class="flex items-center gap-2 text-white font-bold uppercase mb-2">
+                                <i data-lucide="zap" class="text-red-500 w-5 h-5"></i> Movimiento Especial
+                            </div>
+                            <p id="result-move" class="text-gray-300 font-black uppercase text-xl"></p>
+                        </div>
+                    </div>
+
+                    <button id="reset-btn" class="mt-8 text-gray-500 hover:text-white uppercase font-bold text-sm tracking-widest hover:underline">
+                        Intentar con otro peleador
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Eventos -->
+    <section id="eventos" class="py-24 bg-black relative">
+        <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-red-600/10 rounded-full blur-[120px] pointer-events-none"></div>
+        <div class="max-w-6xl mx-auto px-4 relative z-10">
+            <div class="flex flex-col md:flex-row items-center gap-12">
+                <!-- Poster -->
+                <div class="w-full md:w-1/2 group">
+                    <div class="relative aspect-[4/5] rounded-sm overflow-hidden border-2 border-neutral-800 group-hover:border-red-600 transition-colors shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+                        <img src="https://images.unsplash.com/photo-1544117519-31a4b719223d?q=80&w=1000" alt="Poster" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 scale-100 group-hover:scale-110">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-90"></div>
+                        <div class="absolute bottom-8 left-8 right-8">
+                            <div class="bg-red-600 text-black inline-block px-3 py-1 font-mma uppercase text-sm mb-4 transform skew-x-10-neg">
+                                Próximo Evento
+                            </div>
+                            <h3 class="text-5xl font-mma uppercase italic text-white leading-none mb-2">
+                                Buscando al <br/><span class="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-white">Monicate</span>
+                            </h3>
+                            <div class="h-1 w-20 bg-red-600 mt-4"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Info Evento -->
+                <div class="w-full md:w-1/2 space-y-8">
+                    <h2 class="text-6xl md:text-7xl font-mma uppercase italic text-white leading-[0.9]">
+                        ¿Listo para <br/> la <span class="text-outline-red">destrucción?</span>
+                    </h2>
+                    <p class="text-gray-400 text-lg border-l-4 border-red-600 pl-6 py-2">
+                        Vuelve la liga amateur más sangrienta de Santiago. Cupos limitados para peleadores y espectadores. No te quedes fuera de la jaula de asfalto.
+                    </p>
+                    
+                    <div class="grid grid-cols-1 gap-4">
+                        <div class="bg-neutral-900/50 border border-neutral-800 p-6 flex items-center gap-6 hover:border-red-600 transition-all group cursor-pointer">
+                            <i data-lucide="calendar" class="text-red-600 w-10 h-10 group-hover:animate-bounce"></i>
+                            <div>
+                                <h4 class="font-mma text-2xl text-white uppercase">Sábado 15 Octubre</h4>
+                                <p class="text-red-500 font-mono">16:00 hrs - Apertura</p>
+                            </div>
+                        </div>
+                        <div class="bg-neutral-900/50 border border-neutral-800 p-6 flex items-center gap-6 hover:border-red-600 transition-all group cursor-pointer">
+                            <i data-lucide="map-pin" class="text-red-600 w-10 h-10 group-hover:animate-bounce"></i>
+                            <div>
+                                <h4 class="font-mma text-2xl text-white uppercase">Secret Location</h4>
+                                <p class="text-red-500 font-mono">Santiago Centro (Solo con entrada)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="w-full py-6 bg-white hover:bg-red-600 text-black hover:text-white font-mma uppercase text-2xl transition-all shadow-[5px_5px_0_#dc2626] hover:shadow-none hover:translate-x-[5px] hover:translate-y-[5px]">
+                        Comprar Entrada
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Galeria (Videos) -->
+    <section id="galeria" class="py-24 bg-neutral-950">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between items-end mb-12">
+                <div>
+                    <h2 class="text-6xl font-mma uppercase italic text-white">
+                        Highlights <span class="text-red-600">Reels</span>
+                    </h2>
+                    <p class="text-gray-400 mt-2 font-mono uppercase tracking-widest">Lo mejor de la semana</p>
+                </div>
+                <!-- Botón Mute -->
+                <button id="mute-toggle" class="p-3 border border-neutral-700 rounded-full hover:bg-white hover:text-black transition-all">
+                     <i data-lucide="volume-x" class="w-5 h-5" id="mute-icon"></i>
+                </button>
+            </div>
+
+            <!-- Grid de Videos -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="video-grid">
+                <!-- Los videos se inyectan vía JS -->
+            </div>
+            
+            <div class="mt-8 text-center">
+                 <a href="https://instagram.com" target="_blank" class="inline-flex items-center gap-2 text-red-500 font-mma uppercase text-xl hover:text-white transition-colors border-b-2 border-red-500 pb-1">
+                   Ver más en Instagram <i data-lucide="external-link" class="w-5 h-5"></i>
+                 </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer id="contacto" class="bg-black border-t-4 border-red-600 pt-20 pb-10 relative">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <div class="w-24 h-24 bg-red-600 rounded-full flex items-center justify-center border-4 border-white mx-auto mb-8 animate-pulse shadow-[0_0_50px_rgba(220,38,38,0.5)] overflow-hidden p-2">
+                 <img src="image_bf3b84.png" alt="MLS Logo" class="w-full h-full object-contain">
+            </div>
+            <h2 class="text-5xl md:text-7xl font-mma uppercase italic tracking-tighter mb-8 text-white">
+                Matando La Seka
+            </h2>
+            
+            <div class="flex justify-center gap-8 mb-12">
+                <a href="#" class="p-4 bg-neutral-900 rounded-full hover:bg-red-600 hover:text-white transition-all hover:-translate-y-2">
+                    <i data-lucide="instagram" class="w-7 h-7"></i>
+                </a>
+                <a href="#" class="p-4 bg-neutral-900 rounded-full hover:bg-red-600 hover:text-white transition-all hover:-translate-y-2">
+                    <i data-lucide="users" class="w-7 h-7"></i>
+                </a>
+            </div>
+
+            <p class="text-neutral-600 text-sm font-mono uppercase">
+                © 2025 MLS. Santiago, Chile.
+            </p>
+        </div>
+    </footer>
+
+    <!-- 4. JAVASCRIPT (LÓGICA) -->
+    <script>
+        // Inicializar Iconos Lucide
+        lucide.createIcons();
+
+        // --- Configuración API ---
+        const apiKey = ""; // API Key inyectada
+
+        // --- Lógica Navbar Scroll ---
+        const navbar = document.getElementById('navbar');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 50) {
+                navbar.classList.add('nav-scrolled');
+            } else {
+                navbar.classList.remove('nav-scrolled');
+            }
+        });
+
+        // --- Lógica Menú Móvil ---
+        const mobileBtn = document.getElementById('mobile-menu-btn');
+        const closeMenuBtn = document.getElementById('close-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const mobileLinks = document.querySelectorAll('.mobile-link');
+
+        function toggleMenu() {
+            mobileMenu.classList.toggle('translate-x-full');
+        }
+
+        mobileBtn.addEventListener('click', toggleMenu);
+        closeMenuBtn.addEventListener('click', toggleMenu);
+        
+        mobileLinks.forEach(link => {
+            link.addEventListener('click', toggleMenu);
+        });
+
+        // --- Lógica Galería de Videos ---
+        const videosData = [
+            { src: 'https://assets.mixkit.co/videos/preview/mixkit-boxer-training-in-the-gym-40296-large.mp4', poster: 'https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?q=80&w=400' },
+            { src: 'https://assets.mixkit.co/videos/preview/mixkit-fighter-performing-a-kick-boxing-movement-40263-large.mp4', poster: 'https://images.unsplash.com/photo-1615572669205-98b3f6631895?q=80&w=400' },
+            { src: 'https://assets.mixkit.co/videos/preview/mixkit-boxer-getting-ready-to-fight-40331-large.mp4', poster: 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?q=80&w=400' },
+            { src: 'https://assets.mixkit.co/videos/preview/mixkit-man-training-boxing-in-gym-slow-motion-40356-large.mp4', poster: 'https://images.unsplash.com/photo-1595078475328-1ab05d0a6a0e?q=80&w=400' },
+        ];
+
+        const videoGrid = document.getElementById('video-grid');
+        let isMuted = true;
+        const muteToggle = document.getElementById('mute-toggle');
+        const muteIcon = document.getElementById('mute-icon');
+
+        // Función para renderizar videos
+        function renderVideos() {
+            videoGrid.innerHTML = '';
+            videosData.forEach((video, index) => {
+                const div = document.createElement('div');
+                div.className = "aspect-[9/16] bg-neutral-900 relative group overflow-hidden cursor-pointer border border-neutral-800 hover:border-red-600 transition-all duration-300";
+                div.innerHTML = `
+                    <video 
+                        src="${video.src}" 
+                        poster="${video.poster}" 
+                        muted 
+                        loop 
+                        playsinline 
+                        class="w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700 grayscale group-hover:grayscale-0">
+                    </video>
+                    <div class="absolute inset-0 flex items-center justify-center transition-opacity duration-300 group-hover:opacity-0 pointer-events-none">
+                        <i data-lucide="play" class="w-8 h-8 text-white fill-white"></i>
+                    </div>
+                    <div class="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                        <div class="flex items-center gap-2 text-white text-xs font-bold uppercase tracking-wider">
+                           <i data-lucide="instagram" class="w-3 h-3"></i> Reel ${index + 1}
+                        </div>
+                    </div>
+                `;
+
+                const videoEl = div.querySelector('video');
+                
+                // Hover Effects
+                div.addEventListener('mouseenter', () => {
+                    videoEl.muted = isMuted; // Respetar estado global de mute
+                    videoEl.play().catch(e => console.log("Autoplay blocked", e));
+                });
+                
+                div.addEventListener('mouseleave', () => {
+                    videoEl.pause();
+                    videoEl.currentTime = 0;
+                });
+
+                videoGrid.appendChild(div);
+            });
+            lucide.createIcons();
+        }
+
+        // Toggle Mute Global
+        muteToggle.addEventListener('click', () => {
+            isMuted = !isMuted;
+            if (isMuted) {
+                muteIcon.setAttribute('data-lucide', 'volume-x');
+            } else {
+                muteIcon.setAttribute('data-lucide', 'volume-2');
+            }
+            lucide.createIcons();
+        });
+
+        renderVideos();
+
+        // --- Lógica Gemini AI (El Bautizo) ---
+        const fighterNameInput = document.getElementById('fighter-name');
+        const fighterStyleInput = document.getElementById('fighter-style');
+        const generateBtn = document.getElementById('generate-btn');
+        const apiError = document.getElementById('api-error');
+        
+        const formSection = document.getElementById('bautizo-form');
+        const resultSection = document.getElementById('bautizo-result');
+        const resetBtn = document.getElementById('reset-btn');
+
+        // Validar input
+        function validateInput() {
+            if (fighterNameInput.value.trim() !== '') {
+                generateBtn.removeAttribute('disabled');
+                generateBtn.classList.remove('bg-neutral-800', 'text-gray-500', 'cursor-not-allowed');
+                generateBtn.classList.add('bg-gradient-to-r', 'from-red-700', 'to-red-600', 'hover:from-red-600', 'hover:to-red-500', 'text-white', 'shadow-[0_0_20px_rgba(220,38,38,0.4)]');
+            } else {
+                generateBtn.setAttribute('disabled', 'true');
+                generateBtn.classList.add('bg-neutral-800', 'text-gray-500', 'cursor-not-allowed');
+                generateBtn.classList.remove('bg-gradient-to-r', 'from-red-700', 'to-red-600', 'hover:from-red-600', 'hover:to-red-500', 'text-white', 'shadow-[0_0_20px_rgba(220,38,38,0.4)]');
+            }
+        }
+        
+        fighterNameInput.addEventListener('input', validateInput);
+
+        // Llamada a API
+        generateBtn.addEventListener('click', async () => {
+            const name = fighterNameInput.value;
+            const style = fighterStyleInput.value;
+            
+            generateBtn.innerHTML = 'Generando Caos...';
+            generateBtn.setAttribute('disabled', 'true');
+            apiError.classList.add('hidden');
+
+            const prompt = `Actúa como un narrador de peleas underground chileno, muy agresivo y con jerga callejera (coa). 
+            El usuario se llama "${name}" y su estilo de pelea es "${style || 'Callejero Indefinido'}".
+            Tu tarea es:
+            1. Inventarle un Apodo (Nickname) intimidante o gracioso pero rudo.
+            2. Escribir una frase corta de entrada al ring (intro).
+            3. Definir su "Movimiento Especial" (con un nombre creativo).
+            Responde en formato JSON limpio con estas claves: "nickname", "intro", "move".`;
+
+            try {
+                const response = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }],
+                            generationConfig: { responseMimeType: "application/json" }
+                        }),
+                    }
+                );
+
+                if (!response.ok) throw new Error('API Error');
+                
+                const data = await response.json();
+                const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                const result = JSON.parse(generatedText);
+
+                // Mostrar resultados
+                document.getElementById('result-real-name').innerText = name;
+                document.getElementById('result-nickname').innerText = `"${result.nickname}"`;
+                document.getElementById('result-intro').innerText = `"${result.intro}"`;
+                document.getElementById('result-move').innerText = result.move;
+
+                formSection.classList.add('hidden');
+                resultSection.classList.remove('hidden');
+
+            } catch (err) {
+                console.error(err);
+                apiError.innerText = "El sistema se cayó por un golpe bajo. Intenta de nuevo.";
+                apiError.classList.remove('hidden');
+            } finally {
+                generateBtn.innerHTML = 'Generar Mi Identidad ✨';
+                generateBtn.removeAttribute('disabled');
+            }
+        });
+
+        resetBtn.addEventListener('click', () => {
+            fighterNameInput.value = '';
+            fighterStyleInput.value = '';
+            validateInput();
+            resultSection.classList.add('hidden');
+            formSection.classList.remove('hidden');
+        });
+
+    </script>
+</body>
+</html>
