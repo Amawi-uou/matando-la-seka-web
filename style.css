@@ -1,0 +1,59 @@
+/* Variables y Fuentes Globales */
+:root {
+    --color-red-600: #dc2626;
+    --color-black: #000000;
+}
+
+body {
+    font-family: sans-serif;
+    background-color: black;
+    color: #fef2f2; /* red-50 */
+    overflow-x: hidden;
+}
+
+/* Tipografía MMA (Anton) */
+.font-mma {
+    font-family: 'Anton', sans-serif;
+    letter-spacing: 0.05em;
+}
+
+/* Efectos de Texto */
+.text-outline-red {
+    -webkit-text-stroke: 1px var(--color-red-600);
+    color: transparent;
+}
+
+/* Animaciones Personalizadas */
+.animate-fade-up {
+    animation: fadeUp 1s ease-out forwards;
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+@keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Utilidades de Transformación */
+.skew-x-10-neg { transform: skewX(-10deg); }
+.skew-x-10 { transform: skewX(10deg); }
+
+/* Efecto Glitch (Opcional - Usar clase .glitch-effect) */
+.glitch-effect:hover {
+    animation: glitch 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+}
+@keyframes glitch {
+    0% { transform: translate(0) }
+    20% { transform: translate(-2px, 2px) }
+    40% { transform: translate(-2px, -2px) }
+    60% { transform: translate(2px, 2px) }
+    80% { transform: translate(2px, -2px) }
+    100% { transform: translate(0) }
+}
+
+/* Estilos para el Navbar al hacer Scroll */
+.nav-scrolled {
+    background-color: rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(220, 38, 38, 0.3);
+}
